@@ -83,6 +83,10 @@ struct MLX_API CommandEncoder {
     enc_->setThreadgroupMemoryLength(length, idx);
   }
 
+  void set_label(NS::String* label) {
+    enc_->setLabel(label);
+  }
+
   ConcurrentContext start_concurrent() {
     return ConcurrentContext(*this);
   }
@@ -144,6 +148,9 @@ struct DeviceStream {
   std::unique_ptr<CommandEncoder> encoder{nullptr};
   std::shared_ptr<Fence> fence;
   std::vector<array> temporaries;
+
+  // Debug group stack for timeline labels
+  std::vector<std::string> debug_groups;
 };
 
 class MLX_API Device {
@@ -206,6 +213,9 @@ class MLX_API Device {
   void add_temporaries(std::vector<array> arrays, int index);
 
   void set_residency_set(const MTL::ResidencySet* residency_set);
+
+  void push_debug_group(int index, const std::string& label);
+  void pop_debug_group(int index);
 
  private:
   DeviceStream& get_stream_(int index) {

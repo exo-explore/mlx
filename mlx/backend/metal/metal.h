@@ -17,6 +17,11 @@ MLX_API bool is_available();
 MLX_API void start_capture(std::string path = "");
 MLX_API void stop_capture();
 
+/** Push a debug group label for organizing GPU operations in captures */
+MLX_API void push_debug_group(const std::string& label);
+/** Pop the most recent debug group */
+MLX_API void pop_debug_group();
+
 /** Get information about the GPU and system settings. */
 MLX_API const
     std::unordered_map<std::string, std::variant<std::string, size_t>>&

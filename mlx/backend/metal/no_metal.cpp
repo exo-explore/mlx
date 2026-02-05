@@ -15,6 +15,8 @@ bool is_available() {
 
 void start_capture(std::string) {}
 void stop_capture() {}
+void push_debug_group(const std::string&) {}
+void pop_debug_group() {}
 
 const std::unordered_map<std::string, std::variant<std::string, size_t>>&
 device_info() {

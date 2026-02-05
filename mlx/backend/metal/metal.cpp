@@ -4,6 +4,7 @@
 #include "mlx/backend/metal/device.h"
 #include "mlx/backend/metal/metal.h"
 #include "mlx/backend/metal/utils.h"
+#include "mlx/stream.h"
 
 namespace mlx::core::metal {
 
@@ -45,6 +46,16 @@ void stop_capture() {
   auto pool = new_scoped_memory_pool();
   auto manager = MTL::CaptureManager::sharedCaptureManager();
   manager->stopCapture();
+}
+
+void push_debug_group(const std::string& label) {
+  auto& d = metal::device(mlx::core::Device::gpu);
+  d.push_debug_group(default_stream(mlx::core::Device::gpu).index, label);
+}
+
+void pop_debug_group() {
+  auto& d = metal::device(mlx::core::Device::gpu);
+  d.pop_debug_group(default_stream(mlx::core::Device::gpu).index);
 }
 
 } // namespace mlx::core::metal

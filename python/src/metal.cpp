@@ -91,6 +91,76 @@ void init_metal(nb::module_& m) {
       R"pbdoc(
       Stop a Metal capture.
       )pbdoc");
+  metal.def(
+      "push_debug_group",
+      &mx::metal::push_debug_group,
+      "label"_a,
+      R"pbdoc(
+      Push a debug group for organizing GPU operations in Metal captures.
+
+      Debug groups create hierarchical labels in Metal GPU traces
+      (created with :func:`start_capture`), making it easier to
+      understand GPU workloads in Xcode's GPU debugger.
+
+      Args:
+        label (str): The label for the debug group.
+
+      Example:
+        >>> mx.metal.start_capture("trace.gputrace")
+        >>> mx.metal.push_debug_group("attention")
+        >>> # ... GPU operations ...
+        >>> mx.metal.pop_debug_group()
+        >>> mx.metal.stop_capture()
+      )pbdoc");
+  metal.def(
+      "pop_debug_group",
+      &mx::metal::pop_debug_group,
+      R"pbdoc(
+      Pop the most recent debug group.
+      )pbdoc");
+
+  class PyDebugGroup {
+   public:
+    PyDebugGroup(const std::string& label) : label_(label) {}
+    void enter() {
+      mx::metal::push_debug_group(label_);
+    }
+    void exit() {
+      mx::metal::pop_debug_group();
+    }
+
+   private:
+    std::string label_;
+  };
+
+  nb::class_<PyDebugGroup>(
+      metal,
+      "DebugGroup",
+      R"pbdoc(
+      Context manager for Metal debug groups.
+
+      Example:
+        >>> with mx.metal.DebugGroup("forward_pass"):
+        ...     # GPU operations appear under "forward_pass" in traces
+        ...     pass
+      )pbdoc")
+      .def(nb::init<const std::string&>(), "label"_a)
+      .def(
+          "__enter__",
+          [](PyDebugGroup& dg) -> PyDebugGroup& {
+            dg.enter();
+            return dg;
+          })
+      .def(
+          "__exit__",
+          [](PyDebugGroup& dg,
+             const std::optional<nb::type_object>&,
+             const std::optional<nb::object>&,
+             const std::optional<nb::object>&) { dg.exit(); },
+          "exc_type"_a = nb::none(),
+          "exc_value"_a = nb::none(),
+          "traceback"_a = nb::none());
+
   metal.def("device_info", []() {
     DEPRECATE("mx.metal.device_info", "mx.device_info");
     return mx::device_info(mx::Device(mx::Device::gpu, 0));

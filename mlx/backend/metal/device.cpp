@@ -17,6 +17,20 @@ namespace mlx::core::metal {
 
 namespace {
 
+auto build_debug_label(const std::vector<std::string>& groups) -> std::string {
+  if (groups.empty()) {
+    return "";
+  }
+  std::string label;
+  for (size_t i = 0; i < groups.size(); ++i) {
+    if (i > 0) {
+      label += " | ";
+    }
+    label += groups[i];
+  }
+  return label;
+}
+
 constexpr const char* default_mtllib_path = METAL_PATH;
 
 auto get_metal_version() {
@@ -236,6 +250,11 @@ MTL::Library* load_library(
 CommandEncoder::CommandEncoder(DeviceStream& stream) : stream_(stream) {
   enc_ = stream_.buffer->computeCommandEncoder(MTL::DispatchTypeConcurrent);
   enc_->retain();
+
+  auto label = build_debug_label(stream_.debug_groups);
+  if (!label.empty()) {
+    enc_->setLabel(NS::String::string(label.c_str(), NS::UTF8StringEncoding));
+  }
 }
 
 CommandEncoder::~CommandEncoder() {
@@ -396,6 +415,12 @@ MTL::CommandBuffer* Device::get_command_buffer(int index) {
     }
     // Increment ref count so the buffer is not garbage collected
     stream.buffer->retain();
+
+    auto label = build_debug_label(stream.debug_groups);
+    if (!label.empty()) {
+      stream.buffer->setLabel(
+          NS::String::string(label.c_str(), NS::UTF8StringEncoding));
+    }
   }
   return stream.buffer;
 }
@@ -497,6 +522,42 @@ CommandEncoder& Device::get_command_encoder(int index) {
     stream.fence = std::make_shared<Fence>(device_->newFence());
   }
   return *stream.encoder;
+}
+
+void Device::push_debug_group(int index, const std::string& label) {
+  auto& stream = get_stream_(index);
+  stream.debug_groups.push_back(label);
+
+  auto combined = build_debug_label(stream.debug_groups);
+  auto ns_label = NS::String::string(combined.c_str(), NS::UTF8StringEncoding);
+
+  if (stream.buffer != nullptr) {
+    stream.buffer->setLabel(ns_label);
+  }
+  if (stream.encoder != nullptr) {
+    stream.encoder->set_label(ns_label);
+  }
+}
+
+void Device::pop_debug_group(int index) {
+  auto& stream = get_stream_(index);
+  if (stream.debug_groups.empty()) {
+    throw std::runtime_error(
+        "[metal::Device::pop_debug_group] No debug group to pop");
+  }
+  stream.debug_groups.pop_back();
+
+  auto combined = build_debug_label(stream.debug_groups);
+  auto ns_label = combined.empty()
+      ? nullptr
+      : NS::String::string(combined.c_str(), NS::UTF8StringEncoding);
+
+  if (stream.buffer != nullptr) {
+    stream.buffer->setLabel(ns_label);
+  }
+  if (stream.encoder != nullptr) {
+    stream.encoder->set_label(ns_label);
+  }
 }
 
 MTL::Library* Device::get_library(
