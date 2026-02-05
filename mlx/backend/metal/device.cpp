@@ -526,6 +526,10 @@ CommandEncoder& Device::get_command_encoder(int index) {
 
 void Device::push_debug_group(int index, const std::string& label) {
   auto& stream = get_stream_(index);
+
+  // End current encoder so next operation creates a new one with updated label
+  end_encoding(index);
+
   stream.debug_groups.push_back(label);
 
   auto combined = build_debug_label(stream.debug_groups);
@@ -534,9 +538,7 @@ void Device::push_debug_group(int index, const std::string& label) {
   if (stream.buffer != nullptr) {
     stream.buffer->setLabel(ns_label);
   }
-  if (stream.encoder != nullptr) {
-    stream.encoder->set_label(ns_label);
-  }
+  // No need to set encoder label - it will be set when new encoder is created
 }
 
 void Device::pop_debug_group(int index) {
@@ -545,6 +547,10 @@ void Device::pop_debug_group(int index) {
     throw std::runtime_error(
         "[metal::Device::pop_debug_group] No debug group to pop");
   }
+
+  // End current encoder so next operation creates a new one with updated label
+  end_encoding(index);
+
   stream.debug_groups.pop_back();
 
   auto combined = build_debug_label(stream.debug_groups);
@@ -555,9 +561,7 @@ void Device::pop_debug_group(int index) {
   if (stream.buffer != nullptr) {
     stream.buffer->setLabel(ns_label);
   }
-  if (stream.encoder != nullptr) {
-    stream.encoder->set_label(ns_label);
-  }
+  // No need to set encoder label - it will be set when new encoder is created
 }
 
 MTL::Library* Device::get_library(
